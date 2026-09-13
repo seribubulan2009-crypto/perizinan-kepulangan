@@ -387,6 +387,16 @@ function importData(e){
  reader.readAsText(file);
 }
 function refresh(){fillSelects();renderSantri();renderMonitor();renderDash();renderSurat();}
+
+// Karena script Firebase menggunakan type="module", fungsi yang dipanggil
+// oleh onclick/onchange di HTML harus diekspos ke window agar bisa digunakan
+// oleh Chrome Android/iPhone maupun desktop.
+Object.assign(window, {
+  show, addSantri, deleteSantri, previewFoto, resetFoto, addIzin, markReturn,
+  openPhoto, closePhoto, renderSurat, exportData, importData,
+  simpanNamaPenandatangan, resetNamaPenandatangan, refresh
+});
+
 refresh();
 loadFirebaseData();
 </script>
