@@ -58,6 +58,10 @@ label{display:block;margin-bottom:7px;font-size:12px;font-weight:700;color:#4656
   /* Tombol cetak tetap ada di web, tetapi tidak pernah tercetak */
   #suratContent .letter button{display:none!important;visibility:hidden!important}
 }
+
+/* FIX interaksi tombol pada HP */
+button, .btn, label.btn{position:relative;z-index:20;pointer-events:auto;touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
+#ajukanIzinBtn{position:relative;z-index:50;pointer-events:auto;cursor:pointer;}
 </style>
 </head>
 <body>
@@ -115,7 +119,7 @@ label{display:block;margin-bottom:7px;font-size:12px;font-weight:700;color:#4656
 <div><label>Tanggal Wajib Kembali</label><input type="date" id="tglKembali"></div>
 <div><label>Jam Wajib Kembali</label><input type="time" id="jamKembali"></div>
 <div class="full"><label>Keterangan</label><textarea id="ket" rows="3" placeholder="Keperluan izin..."></textarea></div>
-<div class="full"><button class="btn primary" onclick="addIzin()">Ajukan Izin</button></div>
+<div class="full"><button type="button" id="ajukanIzinBtn" class="btn primary" onclick="addIzin(event)">Ajukan Izin</button></div>
 </div></div>
 </section>
 
@@ -388,14 +392,28 @@ function importData(e){
 }
 function refresh(){fillSelects();renderSantri();renderMonitor();renderDash();renderSurat();}
 
+// Pengaman tombol Pengajuan Izin untuk browser desktop dan HP.
+function handleAjukanIzin(event){
+  if(event) event.preventDefault();
+  return addIzin(event);
+}
+
 // Karena script Firebase menggunakan type="module", fungsi yang dipanggil
 // oleh onclick/onchange di HTML harus diekspos ke window agar bisa digunakan
 // oleh Chrome Android/iPhone maupun desktop.
 Object.assign(window, {
-  show, addSantri, deleteSantri, previewFoto, resetFoto, addIzin, markReturn,
+  show, addSantri, deleteSantri, previewFoto, resetFoto, addIzin, handleAjukanIzin, markReturn,
   openPhoto, closePhoto, renderSurat, exportData, importData,
   simpanNamaPenandatangan, resetNamaPenandatangan, refresh
 });
+
+// Event listener langsung, sehingga tombol tetap berfungsi walaupun inline onclick
+// mengalami masalah pada browser tertentu.
+const ajukanIzinBtn = document.getElementById('ajukanIzinBtn');
+if(ajukanIzinBtn){
+  ajukanIzinBtn.addEventListener('click', handleAjukanIzin, {passive:false});
+  ajukanIzinBtn.addEventListener('touchend', handleAjukanIzin, {passive:false});
+}
 
 refresh();
 loadFirebaseData();
