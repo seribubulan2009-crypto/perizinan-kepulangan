@@ -356,13 +356,13 @@ async function simpanNamaPenandatangan(){
  const n=(namaPenandatangan.value||'').trim()||'Humam RS';
  localStorage.setItem('namaPenandatangan',n);
  renderSurat();
- try{if(firebaseReady)await db.collection('pengaturan').doc('umum').set({namaPenandatangan:n},{merge:true});}catch(err){console.error(err);}
+ try{if(firebaseReady)await setDoc(doc(db,'pengaturan','umum'),{namaPenandatangan:n},{merge:true});}catch(err){console.error(err);}
 }
 async function resetNamaPenandatangan(){
  localStorage.removeItem('namaPenandatangan');
  namaPenandatangan.value='Humam RS';
  renderSurat();
- try{if(firebaseReady)await db.collection('pengaturan').doc('umum').set({namaPenandatangan:'Humam RS'},{merge:true});}catch(err){console.error(err);}
+ try{if(firebaseReady)await setDoc(doc(db,'pengaturan','umum'),{namaPenandatangan:'Humam RS'},{merge:true});}catch(err){console.error(err);}
 }
 function renderSurat(){
  let x=izin.find(i=>i.id===+suratSelect.value);if(!x){suratContent.innerHTML='';return}
