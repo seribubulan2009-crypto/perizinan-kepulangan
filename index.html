@@ -149,15 +149,15 @@ button, .btn, label.btn{position:relative;z-index:20;pointer-events:auto;touch-a
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script>
 
-// Firebase project: izinpulang-f30e1
+// Firebase project: pulang-57f63
 const firebaseConfig = {
- apiKey: "AIzaSyA8NZz_bk0r0d3VIDTRTpjqE72SxjG-b_E",
- authDomain: "izinpulang-f30e1.firebaseapp.com",
- projectId: "izinpulang-f30e1",
- storageBucket: "izinpulang-f30e1.firebasestorage.app",
- messagingSenderId: "1042391004208",
- appId: "1:1042391004208:web:bca697ad468c18e002e9f5",
- measurementId: "G-XE5R6GMX7Q"
+ apiKey: "AIzaSyC3nBsE1Zl5kEJ-czr7-3CFPAYLNMVRgfE4",
+ authDomain: "pulang-57f63.firebaseapp.com",
+ projectId: "pulang-57f63",
+ storageBucket: "pulang-57f63.firebasestorage.app",
+ messagingSenderId: "479522183673",
+ appId: "1:479522183673:web:79bf730e17f861400cc528",
+ measurementId: "G-2RFV9W2V3K"
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
@@ -283,266 +283,87 @@ function resetFoto(){
  if(typeof fotoPreview!=='undefined'){fotoPreview.removeAttribute('src');fotoPreview.style.display='none';}
 }
 
-async function addIzin(){
-  let sid = +santriSelect.value;
-
-  if(!sid){
-    alert('Pilih santri.');
-    return;
-  }
-
-  if(
-    !tglBerangkat.value ||
-    !jamBerangkat.value ||
-    !tglKembali.value ||
-    !jamKembali.value
-  ){
-    alert('Lengkapi tanggal dan waktu berangkat serta tanggal dan jam wajib kembali.');
-    return;
-  }
-
-  let penjemput = namaPenjemput.value.trim();
-  let hubungan = hubunganPenjemput.value.trim();
-  let hp = hpPenjemput.value.trim();
-
-  if(!penjemput || !hubungan || !hp){
-    alert('Lengkapi data pihak penjemput.');
-    return;
-  }
-
-  if(!fotoPenjemputData){
-    alert('Foto bersama santri dan penjemput wajib diambil/diunggah sebelum izin dibuat.');
-    return;
-  }
-
-  const id = Date.now();
-
-  try{
-
-    // Kompres foto sebelum disimpan ke Firestore
-    const fotoFirestore = await kompresFoto(
-      fotoPenjemputData,
-      600,
-      0.55
-    );
-
-    const data = {
-      id: id,
-      santri_id: sid,
-
-      tanggal_berangkat: tglBerangkat.value,
-      jam_berangkat: jamBerangkat.value,
-
-      tanggal_wajib_kembali: tglKembali.value,
-      jam_wajib_kembali: jamKembali.value,
-
-      waktu_kembali_aktual: null,
-      status_izin: 'Pulang',
-
-      keterangan: ket.value,
-
-      berangkat_sendiri: berangkatSendiri.value.trim(),
-
-      nama_penjemput: penjemput,
-      hubungan_penjemput: hubungan,
-      hp_penjemput: hp,
-
-      // Foto sekarang disimpan langsung sebagai Base64
-      foto_penjemput: fotoFirestore
-    };
-
-    if(firebaseReady){
-
-      await saveIzinFirebase(data);
-
-    }else{
-
-      throw new Error('Firebase belum siap.');
-
-    }
-
-    // Simpan ke data lokal aplikasi
-    izin.push(data);
-    save();
-    refresh();
-
-    // Kosongkan form
-    ket.value = '';
-    berangkatSendiri.value = '';
-    namaPenjemput.value = '';
-    hubunganPenjemput.value = '';
-    hpPenjemput.value = '';
-
-    resetFoto();
-
-    alert('Izin berhasil dibuat dan tersimpan di Firebase.');
-
-  }catch(err){
-
-    console.error('Gagal menyimpan izin:', err);
-
-    alert(
-      'Izin belum berhasil disimpan ke Firebase.\n\n' +
-      'Error: ' + (err.message || err)
-    );
-
-  }
+async function kompresFoto(dataUrl,maxSide=600,quality=0.55){
+ if(!dataUrl)return '';
+ return new Promise((resolve,reject)=>{
+   const img=new Image();
+   img.onload=()=>{
+     let width=img.naturalWidth||img.width;
+     let height=img.naturalHeight||img.height;
+     if(!width||!height){resolve(dataUrl);return;}
+     const scale=Math.min(1,maxSide/Math.max(width,height));
+     width=Math.max(1,Math.round(width*scale));
+     height=Math.max(1,Math.round(height*scale));
+     const canvas=document.createElement('canvas');
+     canvas.width=width;
+     canvas.height=height;
+     const ctx=canvas.getContext('2d');
+     if(!ctx){reject(new Error('Canvas tidak tersedia.'));return;}
+     ctx.drawImage(img,0,0,width,height);
+     resolve(canvas.toDataURL('image/jpeg',quality));
+   };
+   img.onerror=()=>reject(new Error('Foto tidak dapat diproses.'));
+   img.src=dataUrl;
+ });
 }
 
-async function addIzin(event){
+async function addIzin(){
+ let sid=+santriSelect.value;
+ if(!sid)return alert('Pilih santri.');
+ if(!tglBerangkat.value||!jamBerangkat.value||!tglKembali.value||!jamKembali.value)return alert('Lengkapi tanggal dan waktu berangkat serta tanggal dan jam wajib kembali.');
+ let penjemput=namaPenjemput.value.trim(), hubungan=hubunganPenjemput.value.trim(), hp=hpPenjemput.value.trim();
+ if(!penjemput||!hubungan||!hp)return alert('Lengkapi data pihak penjemput.');
+ if(!fotoPenjemputData)return alert('Foto bersama santri dan penjemput wajib diambil/diunggah sebelum izin dibuat.');
 
-  if(event){
-    event.preventDefault();
-  }
+ const id=Date.now();
 
-  let sid=Number(santriSelect.value);
+ try{
+   const fotoFirestore=await kompresFoto(fotoPenjemputData,600,0.55);
 
-  if(!sid){
-    alert('Pilih santri.');
-    return;
-  }
+   // Batas aman agar dokumen Firestore tidak terlalu besar
+   if(fotoFirestore.length>850000){
+      return alert('Ukuran foto masih terlalu besar. Silakan ambil foto ulang dengan ukuran lebih kecil.');
+   }
 
-  if(
-    !tglBerangkat.value ||
-    !jamBerangkat.value ||
-    !tglKembali.value ||
-    !jamKembali.value
-  ){
-    alert(
-      'Lengkapi tanggal dan waktu berangkat serta tanggal dan jam wajib kembali.'
-    );
-    return;
-  }
+   const data={
+     id,
+     santri_id:sid,
+     tanggal_berangkat:tglBerangkat.value,
+     jam_berangkat:jamBerangkat.value,
+     tanggal_wajib_kembali:tglKembali.value,
+     jam_wajib_kembali:jamKembali.value,
+     waktu_kembali_aktual:null,
+     status_izin:'Pulang',
+     keterangan:ket.value,
+     berangkat_sendiri:berangkatSendiri.value.trim(),
+     nama_penjemput:penjemput,
+     hubungan_penjemput:hubungan,
+     hp_penjemput:hp,
+     foto_penjemput:fotoFirestore
+   };
 
-  let penjemput=namaPenjemput.value.trim();
-  let hubungan=hubunganPenjemput.value.trim();
-  let hp=hpPenjemput.value.trim();
-
-  if(!penjemput || !hubungan || !hp){
-    alert('Lengkapi data pihak penjemput.');
-    return;
-  }
-
-  if(!fotoPenjemputData){
-    alert(
-      'Foto bersama santri dan penjemput wajib diambil/diunggah sebelum izin dibuat.'
-    );
-    return;
-  }
-
-  const id=Date.now();
-
-  /*
-   * Kompres foto di browser
-   * Tidak menggunakan Firebase Storage
-   */
-  const fotoKecil=await kompresFoto(
-    fotoPenjemputData,
-    600,
-    0.55
-  );
-
-  const data={
-    id:id,
-    santri_id:sid,
-
-    tanggal_berangkat:
-      tglBerangkat.value,
-
-    jam_berangkat:
-      jamBerangkat.value,
-
-    tanggal_wajib_kembali:
-      tglKembali.value,
-
-    jam_wajib_kembali:
-      jamKembali.value,
-
-    waktu_kembali_aktual:null,
-
-    status_izin:'Pulang',
-
-    keterangan:
-      ket.value,
-
-    berangkat_sendiri:
-      berangkatSendiri.value.trim(),
-
-    nama_penjemput:
-      penjemput,
-
-    hubungan_penjemput:
-      hubungan,
-
-    hp_penjemput:
-      hp,
-
-    /*
-     * Foto disimpan langsung sebagai Base64
-     * di Firestore
-     */
-    foto_penjemput:
-      fotoKecil
-  };
-
-
-  try{
-
-    /*
-     * SIMPAN KE FIRESTORE
-     */
-    if(firebaseReady){
-
+   if(firebaseReady){
       await saveIzinFirebase(data);
+   }else{
+      throw new Error('Firebase belum tersambung.');
+   }
 
-    }
+   izin.push(data);
+   save();
+   refresh();
 
+   ket.value='';
+   berangkatSendiri.value='';
+   namaPenjemput.value='';
+   hubunganPenjemput.value='';
+   hpPenjemput.value='';
+   resetFoto();
 
-    /*
-     * SIMPAN KE BROWSER
-     */
-    izin.push(data);
-
-    save();
-
-    refresh();
-
-
-    /*
-     * RESET FORM
-     */
-    ket.value='';
-    berangkatSendiri.value='';
-    namaPenjemput.value='';
-    hubunganPenjemput.value='';
-    hpPenjemput.value='';
-
-    resetFoto();
-
-
-    alert(
-      'Izin berhasil dibuat dan tersimpan di Firebase.'
-    );
-
-  }catch(err){
-
-    console.error(
-      'Gagal menyimpan izin:',
-      err
-    );
-
-    alert(
-      'Izin gagal disimpan.\n\n' +
-      'Detail: ' +
-      (
-        err.code ||
-        err.message ||
-        'Kesalahan tidak diketahui'
-      )
-    );
-
-  }
-
+   alert('Izin berhasil dibuat dan tersimpan di Firebase.');
+ }catch(err){
+   console.error('Gagal menyimpan izin:',err);
+   alert('Izin belum berhasil disimpan ke Firebase.\n\nError: '+(err.message||err));
+ }
 }
 async function markReturn(id){
  let x=izin.find(i=>i.id===id);if(!x)return;
