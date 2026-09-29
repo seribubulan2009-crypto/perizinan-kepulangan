@@ -73,6 +73,7 @@ button, .btn, label.btn{position:relative;z-index:20;pointer-events:auto;touch-a
 <button onclick="show('santri',this)">👨‍🎓 Data Santri</button>
 <button onclick="show('izin',this)">📝 Pengajuan Izin</button>
 <button onclick="show('monitor',this)">🏡 Monitoring</button>
+<button onclick="show('riset',this)">📊 Riset Data</button>
 <button onclick="show('surat',this)">📄 Surat Izin</button>
 </div>
 </aside>
@@ -128,6 +129,26 @@ button, .btn, label.btn{position:relative;z-index:20;pointer-events:auto;touch-a
 <div class="panel"><div id="monitorTable"></div></div>
 </section>
 
+<section id="riset" class="page">
+<h1>Riset Data</h1><div class="sub">Analisis khusus riwayat kepulangan/izin, bukan data master santri.</div>
+<div class="panel">
+  <h3>🔎 Filter Riwayat</h3>
+  <div class="grid">
+    <div><label>Dari tanggal</label><input type="date" id="risetDari"></div>
+    <div><label>Sampai tanggal</label><input type="date" id="risetSampai"></div>
+    <div><label>Status</label><select id="risetStatus"><option value="">Semua Status</option><option value="Pulang">Sedang Pulang</option><option value="Tepat Waktu">Tepat Waktu</option><option value="Terlambat">Terlambat</option></select></div>
+    <div><label>Jenis Kelamin</label><select id="risetJK"><option value="">Semua</option><option value="Putra">Putra</option><option value="Putri">Putri</option></select></div>
+  </div>
+  <div class="toolbar" style="margin-top:14px">
+    <button class="btn primary" onclick="renderRiset()">🔎 Tampilkan Riset</button>
+    <button class="btn secondary" onclick="resetRiset()">↻ Reset</button>
+    <button class="btn secondary" onclick="exportRisetCSV()">⬇️ Export CSV</button>
+  </div>
+</div>
+<div class="cards" id="risetCards"></div>
+<div class="panel"><h3>📈 Ringkasan Riwayat</h3><div id="risetRingkasan"></div></div>
+<div class="panel"><h3>🧾 Detail Riwayat Kepulangan</h3><div id="risetTable"></div></div>
+</section>
 <section id="surat" class="page">
 <h1>Surat Keterangan Izin</h1><div class="sub">Pilih izin untuk membuat surat siap cetak</div>
 <div class="panel"><div class="grid">
@@ -230,6 +251,13 @@ const cPutri=document.getElementById('cPutri');
 const cPulang=document.getElementById('cPulang');
 const cTepat=document.getElementById('cTepat');
 const cTelat=document.getElementById('cTelat');
+const risetDari=document.getElementById('risetDari');
+const risetSampai=document.getElementById('risetSampai');
+const risetStatus=document.getElementById('risetStatus');
+const risetJK=document.getElementById('risetJK');
+const risetCards=document.getElementById('risetCards');
+const risetRingkasan=document.getElementById('risetRingkasan');
+const risetTable=document.getElementById('risetTable');
 
 const seedSantri=[
 {id:1,nama:'Ahmad Fauzi',jenis_kelamin:'Putra',kelas:'11 IPA',kamar:'Al-Fatih 1'},
@@ -394,6 +422,35 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')closePhoto();});
 function renderMonitor(){
  monitorTable.innerHTML=`<table><tr><th>Santri</th><th>Putra/Putri</th><th>Penjemput</th><th>Foto</th><th>Berangkat</th><th>Wajib Kembali</th><th>Kembali Aktual</th><th>Status</th><th>Aksi</th></tr>${izin.map(x=>`<tr><td>${getName(x.santri_id)}</td><td>${santri.find(s=>s.id===x.santri_id)?.jenis_kelamin||'-'}</td><td>${x.nama_penjemput||'-'}<br><span class='small'>${x.hubungan_penjemput||''} ${x.hp_penjemput||''}</span></td><td>${x.foto_penjemput?`<button class="photo-btn" onclick="openPhoto(${x.id})">📷 Foto Penjemput</button>`:'<span class="photo-empty">Tidak ada</span>'}</td><td>${fmtDate(x.tanggal_berangkat)} ${x.jam_berangkat||''}</td><td>${fmtDate(x.tanggal_wajib_kembali)} ${x.jam_wajib_kembali}</td><td>${x.waktu_kembali_aktual?new Date(x.waktu_kembali_aktual).toLocaleString('id-ID'): '-'}</td><td>${badge(x.status_izin)}</td><td>${x.status_izin==='Pulang'?`<button class="btn primary" onclick="markReturn(${x.id})">Konfirmasi Kembali</button>`:'-'}</td></tr>`).join('')}</table></div>`;
 }
+function getRisetData(){
+ let a=[...izin];
+ const dari=risetDari?.value||'', sampai=risetSampai?.value||'', status=risetStatus?.value||'', jk=risetJK?.value||'';
+ if(dari) a=a.filter(x=>(x.tanggal_berangkat||'')>=dari);
+ if(sampai) a=a.filter(x=>(x.tanggal_berangkat||'')<=sampai);
+ if(status) a=a.filter(x=>(x.status_izin||'')===status);
+ if(jk) a=a.filter(x=>santri.find(s=>s.id===x.santri_id)?.jenis_kelamin===jk);
+ return a.sort((a,b)=>String(b.tanggal_berangkat||'').localeCompare(String(a.tanggal_berangkat||'')));
+}
+function renderRiset(){
+ const a=getRisetData();
+ const total=a.length, aktif=a.filter(x=>x.status_izin==='Pulang').length, tepat=a.filter(x=>x.status_izin==='Tepat Waktu').length, telat=a.filter(x=>x.status_izin==='Terlambat').length;
+ const putra=a.filter(x=>santri.find(s=>s.id===x.santri_id)?.jenis_kelamin==='Putra').length;
+ const putri=a.filter(x=>santri.find(s=>s.id===x.santri_id)?.jenis_kelamin==='Putri').length;
+ risetCards.innerHTML=`<div class="card">📋 Total Riwayat<div class="num">${total}</div></div><div class="card">🏡 Sedang Pulang<div class="num blue">${aktif}</div></div><div class="card">✅ Tepat Waktu<div class="num green">${tepat}</div></div><div class="card">⏰ Terlambat<div class="num red">${telat}</div></div><div class="card">👨 Putra<div class="num blue">${putra}</div></div><div class="card">👩 Putri<div class="num blue">${putri}</div></div>`;
+ const rate=tepat+telat?Math.round(tepat/(tepat+telat)*100):0;
+ risetRingkasan.innerHTML=`<div class="grid"><div class="panel" style="margin-top:0;background:#f8faf9"><b>Ketepatan kembali</b><div class="num green">${rate}%</div><div class="small">Dihitung dari data yang sudah memiliki status Tepat Waktu/Terlambat.</div></div><div class="panel" style="margin-top:0;background:#f8faf9"><b>Perbandingan jenis kelamin</b><div style="margin-top:10px">Putra: <b>${putra}</b> &nbsp;|&nbsp; Putri: <b>${putri}</b></div></div></div>`;
+ risetTable.innerHTML=a.length?`<div class="table-wrap"><table><tr><th>Tanggal Berangkat</th><th>Santri</th><th>JK</th><th>Penjemput</th><th>Wajib Kembali</th><th>Kembali Aktual</th><th>Status</th></tr>${a.map(x=>{const st=santri.find(s=>s.id===x.santri_id);return `<tr><td>${fmtDate(x.tanggal_berangkat)} ${x.jam_berangkat||''}</td><td>${getName(x.santri_id)}</td><td>${st?.jenis_kelamin||'-'}</td><td>${x.nama_penjemput||x.berangkat_sendiri||'-'}</td><td>${fmtDate(x.tanggal_wajib_kembali)} ${x.jam_wajib_kembali||''}</td><td>${x.waktu_kembali_aktual?new Date(x.waktu_kembali_aktual).toLocaleString('id-ID'):'-'}</td><td>${badge(x.status_izin)}</td></tr>`}).join('')}</table></div>`:'<div class="empty">Belum ada riwayat yang sesuai dengan filter.</div>';
+}
+function resetRiset(){risetDari.value='';risetSampai.value='';risetStatus.value='';risetJK.value='';renderRiset();}
+function exportRisetCSV(){
+ const a=getRisetData();
+ if(!a.length)return alert('Tidak ada riwayat untuk diekspor.');
+ const rows=[['Tanggal Berangkat','Jam Berangkat','Santri','Jenis Kelamin','Penjemput','Hubungan','No HP','Wajib Kembali','Jam Wajib Kembali','Kembali Aktual','Status','Keterangan']];
+ a.forEach(x=>{const st=santri.find(s=>s.id===x.santri_id);rows.push([x.tanggal_berangkat||'',x.jam_berangkat||'',getName(x.santri_id),st?.jenis_kelamin||'',x.nama_penjemput||x.berangkat_sendiri||'',x.hubungan_penjemput||'',x.hp_penjemput||'',x.tanggal_wajib_kembali||'',x.jam_wajib_kembali||'',x.waktu_kembali_aktual?new Date(x.waktu_kembali_aktual).toLocaleString('id-ID'):'',x.status_izin||'',x.keterangan||'']);});
+ const csv=rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n');
+ const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8;'}),url=URL.createObjectURL(blob),aEl=document.createElement('a');aEl.href=url;aEl.download='riset_riwayat_kepulangan.csv';aEl.click();URL.revokeObjectURL(url);
+}
+
 function renderDash(){
  let pul=izin.filter(x=>x.status_izin==='Pulang'),tepat=izin.filter(x=>x.status_izin==='Tepat Waktu'),tel=izin.filter(x=>x.status_izin==='Terlambat');
  cTotal.textContent=santri.length;cPutra.textContent=santri.filter(s=>s.jenis_kelamin==='Putra').length;cPutri.textContent=santri.filter(s=>s.jenis_kelamin==='Putri').length;cPulang.textContent=pul.length;cTepat.textContent=tepat.length;cTelat.textContent=tel.length;
@@ -443,7 +500,7 @@ function importData(e){
  };
  reader.readAsText(file);
 }
-function refresh(){fillSelects();renderSantri();renderMonitor();renderDash();renderSurat();}
+function refresh(){fillSelects();renderSantri();renderMonitor();renderDash();renderRiset();renderSurat();}
 
 // Pengaman tombol Pengajuan Izin untuk browser desktop dan HP.
 function handleAjukanIzin(event){
@@ -457,7 +514,7 @@ function handleAjukanIzin(event){
 Object.assign(window, {
   show, addSantri, deleteSantri, previewFoto, resetFoto, addIzin, handleAjukanIzin, markReturn,
   openPhoto, closePhoto, renderSurat, exportData, importData,
-  simpanNamaPenandatangan, resetNamaPenandatangan, refresh
+  simpanNamaPenandatangan, resetNamaPenandatangan, renderRiset, resetRiset, exportRisetCSV, refresh
 });
 
 // Event listener langsung, sehingga tombol tetap berfungsi walaupun inline onclick
